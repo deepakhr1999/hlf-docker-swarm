@@ -17,8 +17,8 @@ services:
                 max_attempts: 3
             placement:
                 constraints:
-                    - node.hostname == intel-sawtooth
-        image: hyperledger/fabric-peer:x86_64-1.1.0
+                    - node.hostname == M1
+        image: hyperledger/fabric-peer:latest
         hostname: peer0.org3.example.com
         environment:
             - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
@@ -76,8 +76,8 @@ services:
                 max_attempts: 3
             placement:
                 constraints:
-                    - node.hostname == intel-sawtooth
-        image: hyperledger/fabric-peer:x86_64-1.1.0
+                    - node.hostname == M2
+        image: hyperledger/fabric-peer:latest
         hostname: peer1.org3.example.com
         environment:
             - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
