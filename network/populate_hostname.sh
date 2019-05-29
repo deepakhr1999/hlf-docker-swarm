@@ -36,8 +36,8 @@ sed "$FLAG" "s/- node.hostname == M2/- node.hostname == $M2_HOSTNAME/g" $PEER_OR
 sed "$FLAG" "s/- node.hostname == M2/- node.hostname == $M2_HOSTNAME/g" $PEER_ORG3_COMPOSE_PATH
 
 # M4 has Orderer1,  service 
-sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M2_HOSTNAME/g" $ORDERER1_COMPOSE_PATH
-sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M2_HOSTNAME/g" $SERVICE_ORG2_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M4_HOSTNAME/g" $ORDERER1_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M4_HOSTNAME/g" $SERVICE_ORG2_COMPOSE_PATH
 sed "$FLAG" "s#- FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/.*#- FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/$ORG2_CA_PATH#g" $SERVICE_ORG2_COMPOSE_PATH
 
 # # M3
