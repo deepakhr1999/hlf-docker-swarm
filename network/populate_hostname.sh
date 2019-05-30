@@ -22,7 +22,9 @@ ORG3_CA_PATH=$(ls /var/mynetwork/certs/crypto-config/peerOrganizations/org3.exam
 sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M3_HOSTNAME/g" $ZK_COMPOSE_PATH
 sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M3_HOSTNAME/g" $KAFKA_COMPOSE_PATH
 sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M3_HOSTNAME/g" $ORDERER0_COMPOSE_PATH
-sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M3_HOSTNAME/g" $SERVICE_ORG1_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == M3/- node.hostname == $M3_HOSTNAME/g" $SERVICE_ORG1_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == M1/- node.hostname == $M1_HOSTNAME/g" $SERVICE_ORG1_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == M2/- node.hostname == $M2_HOSTNAME/g" $SERVICE_ORG1_COMPOSE_PATH
 sed "$FLAG" "s#- FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/.*#- FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/$ORG1_CA_PATH#g" $SERVICE_ORG1_COMPOSE_PATH
 
 # M1 has peer0 of all orgs
@@ -37,10 +39,16 @@ sed "$FLAG" "s/- node.hostname == M2/- node.hostname == $M2_HOSTNAME/g" $PEER_OR
 
 # M4 has Orderer1,  service 
 sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M4_HOSTNAME/g" $ORDERER1_COMPOSE_PATH
-sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $M4_HOSTNAME/g" $SERVICE_ORG2_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == M3/- node.hostname == $M3_HOSTNAME/g" $SERVICE_ORG2_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == M1/- node.hostname == $M1_HOSTNAME/g" $SERVICE_ORG2_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == M2/- node.hostname == $M2_HOSTNAME/g" $SERVICE_ORG2_COMPOSE_PATH
 sed "$FLAG" "s#- FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/.*#- FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/$ORG2_CA_PATH#g" $SERVICE_ORG2_COMPOSE_PATH
 
-# # M3
+# Services of Org is in M3
+
+sed "$FLAG" "s/- node.hostname == M3/- node.hostname == $M3_HOSTNAME/g" $SERVICE_ORG3_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == M1/- node.hostname == $M1_HOSTNAME/g" $SERVICE_ORG3_COMPOSE_PATH
+sed "$FLAG" "s/- node.hostname == M2/- node.hostname == $M2_HOSTNAME/g" $SERVICE_ORG3_COMPOSE_PATH
 # sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $ORG3_HOSTNAME/g" $PEER_ORG3_COMPOSE_PATH
 # sed "$FLAG" "s/- node.hostname == .*/- node.hostname == $ORG3_HOSTNAME/g" $SERVICE_ORG3_COMPOSE_PATH
 # sed "$FLAG" "s#- FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/.*#- FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/$ORG3_CA_PATH#g" $SERVICE_ORG3_COMPOSE_PATH
