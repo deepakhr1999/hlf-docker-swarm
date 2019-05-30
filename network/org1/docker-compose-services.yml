@@ -44,7 +44,7 @@ services:
                 max_attempts: 3
             placement:
                 constraints:
-                    - node.hostname == M1
+                    - node.hostname == M3
         image: hyperledger/fabric-tools:latest
         tty: true
         hostname: cli
