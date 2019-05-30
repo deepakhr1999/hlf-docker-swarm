@@ -1,165 +1,246 @@
-/**
-* Copyright 2017 HUAWEI. All Rights Reserved.
-*
-* SPDX-License-Identifier: Apache-2.0
-*
-*/
-
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
 
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
 )
+import "strconv"
+var (
+	fileName = "simple"
+)
 
-const ERROR_SYSTEM = "{\"code\":300, \"reason\": \"system error: %s\"}"
-const ERROR_WRONG_FORMAT = "{\"code\":301, \"reason\": \"command format is wrong\"}"
-const ERROR_ACCOUNT_EXISTING = "{\"code\":302, \"reason\": \"account already exists\"}"
-const ERROR_ACCOUNT_ABNORMAL = "{\"code\":303, \"reason\": \"abnormal account\"}"
-const ERROR_MONEY_NOT_ENOUGH = "{\"code\":304, \"reason\": \"account's money is not enough\"}"
-
-
-
-type SimpleChaincode struct {
-
+//structure of chaincode
+type CloudChaincode struct{
 }
 
-func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
-	// nothing to do
+// Data regarding where the file is stored
+type FileData struct{
+	SecretKey string `json:"SecretKey"`
+	ServiceProviderMap map[int][]string
+}
+
+//structure of data 
+type Data struct{
+	CompositeKey string `json:"CompositeKey"`
+	PublicKey string `json:"PublicKey"`
+	FileData map[string]FileData `json:"FileData"`
+}
+
+//structure for sharing data
+type ShareData struct{
+	EdgeKey string `json:"EdgeKey"`
+	FileData map[string]FileData `json:"FileData"`
+}
+
+//initialization function
+func (t *CloudChaincode) Init(stub shim.ChaincodeStubInterface)pb.Response{
+	// Whatever variable initialisation you want can be done here //
 	return shim.Success(nil)
 }
 
-func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
+// invoking functions
+func  (t *CloudChaincode) Invoke(stub shim.ChaincodeStubInterface)pb.Response{
+	// IF-ELSE-IF all the functions 
 	function, args := stub.GetFunctionAndParameters()
-
-	if function == "open" {
-		return t.Open(stub, args)
+	if function == "CreateUser" {
+		return t.CreateUser(stub, args)
+	}else if function == "UploadFile" {
+		return t.UploadFile(stub, args)
+	}else if function == "DownloadFile" {
+		return t.DownloadFile(stub, args)
+	}else if function == "DeleteFile" {
+		return t.DeleteFile(stub, args)
+	}else if function == "ShareFile" {
+		return t.ShareFile(stub, args)
 	}
-	if function == "delete" {
-		return t.Delete(stub, args)
-	}
-	if function == "query" {
-		return t.Query(stub, args)
-	}
-	if function == "transfer" {
-		return t.Transfer(stub, args)
-	}
-
-	return shim.Error(ERROR_WRONG_FORMAT)
+	fmt.Println("invoke did not find func : " + function) //error
+	return shim.Error("Received unknown function invocation")
+	// end of all functions
 }
 
-// open an account, should be [open account money]
-func (t *SimpleChaincode) Open(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+// Creating data of user 
+func  (t *CloudChaincode) CreateUser(stub shim.ChaincodeStubInterface, args []string)pb.Response{
+	var CompositeKey = args[0]
+	var PublicKey = args[1]
+	// checking for an error or if the user already exists
+	DataAsBytes, err := stub.GetState(CompositeKey)
+	if err != nil {
+		return shim.Error("Failed to get CompositeKey:" + err.Error())
+	}else if DataAsBytes != nil{
+		return shim.Error("User with current composite Key already exists")
+	}
+	var Data = &Data{CompositeKey:CompositeKey, PublicKey:PublicKey}
+	DataJsonAsBytes, err :=json.Marshal(Data)
+	if err != nil {
+		shim.Error("Error encountered while Marshalling")
+	}
+	err = stub.PutState(CompositeKey, DataJsonAsBytes)
+	if err != nil {
+		shim.Error("Error encountered while putting data")
+	}
+	fmt.Println("Ledger Updated Successfully")
+	return shim.Success(nil)
+}
+
+// Uploading a file
+func  (t *CloudChaincode) UploadFile(stub shim.ChaincodeStubInterface, args []string)pb.Response{
+	var CompositeKey = args[0]
+	DataAsBytes, err := stub.GetState(CompositeKey)
+	if err != nil {
+		return shim.Error("Failed to get CompositeKey:" + err.Error())
+	}else if DataAsBytes == nil{
+		return shim.Error("Unkown composite key")
+	}
+	ServiceProviderMap := make(map[int][]string)
+	var SecretKey = args[1]
+	var N = len(args)
+	fmt.Println(N)
+	var count = 1
+	for i := 2; i < N; i++ {
+		k, err := strconv.Atoi(args[i])
+		if err != nil {
+			ServiceProviderMap[count] = append(ServiceProviderMap[count],args[i])
+		}else {
+			count = k
+		}	
+	}
+	fmt.Println(ServiceProviderMap)
+	var FileDataNew = &FileData{SecretKey:SecretKey, ServiceProviderMap:ServiceProviderMap}
+	fmt.Println(FileDataNew)
+	var Data Data
+	err = json.Unmarshal(DataAsBytes, &Data)
+	if err != nil {
+		return shim.Error("Error encountered during unmarshalling the data")
+	}
+	if Data.FileData == nil {
+		FileDataUploaded := make(map[string]FileData)
+		FileDataUploaded[SecretKey] = *FileDataNew
+		Data.FileData = FileDataUploaded
+	}else{
+		Data.FileData[SecretKey] = *FileDataNew
+	}
+	DataJsonAsBytes, err :=json.Marshal(Data)
+	fmt.Println(Data)
+	if err != nil {
+		return shim.Error("Error encountered while remarshalling")
+	}
+	err = stub.PutState(CompositeKey, DataJsonAsBytes)
+	if err != nil {
+		return shim.Error("error encountered while putting state")
+	}
+	fmt.Println("File uploaded successfully")
+	return shim.Success(nil)
+}
+
+// Downloading a file
+func  (t *CloudChaincode) DownloadFile(stub shim.ChaincodeStubInterface, args []string)pb.Response{
 	if len(args) != 2 {
-		return shim.Error(ERROR_WRONG_FORMAT)
+		fmt.Println("Incorrect number of arguments")
+		return shim.Error("Incorrect number of arguments")
 	}
-
-	account  := args[0]
-	money,err := stub.GetState(account)
-	if money != nil {
-		return shim.Error(ERROR_ACCOUNT_EXISTING)
-	}
-
-	_,err = strconv.Atoi(args[1])
+	var CompositeKey = args[0]
+	var SecretKey = args[1]
+	DataAsBytes, err := stub.GetState(CompositeKey)
 	if err != nil {
-		return shim.Error(ERROR_WRONG_FORMAT)
+		return shim.Error("Error encountered")
+	}else if DataAsBytes == nil {
+		return shim.Error("No user with the given CompositeKey")
 	}
-
-	err = stub.PutState(account, []byte(args[1]))
+	var Data Data
+	err = json.Unmarshal(DataAsBytes, &Data)
+	var FileData FileData
+	FileData = Data.FileData[SecretKey]
+	FileJsonAsBytes, err :=json.Marshal(FileData)
 	if err != nil {
-		s := fmt.Sprintf(ERROR_SYSTEM, err.Error())
-		return shim.Error(s)
+		return shim.Error("Error encountered")
 	}
+	return shim.Success(FileJsonAsBytes)
+}
 
+// Deleting a file 
+func  (t *CloudChaincode) DeleteFile(stub shim.ChaincodeStubInterface, args []string)pb.Response{
+	if len(args) != 2 {
+		fmt.Println("Incorrect number of arguments")
+		return shim.Error("Error encountered")
+	}
+	var CompositeKey = args[0]
+	var SecretKey = args[1]
+	DataAsBytes, err := stub.GetState(CompositeKey)
+	if err != nil {
+		return shim.Error("Error encountered")
+	}else if DataAsBytes == nil {
+		return shim.Error("No user with the given CompositeKey")
+	}
+	var Data Data
+	err = json.Unmarshal(DataAsBytes, &Data)
+	// 
+	// CHECK THIS OUT
+	delete(Data.FileData, SecretKey)
+
+	DataJsonAsBytes, err :=json.Marshal(Data)
+	fmt.Println(Data)
+	if err != nil {
+		return shim.Error("Error encountered while remarshalling")
+	}
+	err = stub.PutState(CompositeKey, DataJsonAsBytes)
+	if err != nil {
+		return shim.Error("error encountered while putting state")
+	}
+	fmt.Println("File uploaded successfully")
 	return shim.Success(nil)
 }
 
-// delete an account, should be [delete account]
-func (t *SimpleChaincode) Delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	if len(args) != 1 {
-		return shim.Error(ERROR_WRONG_FORMAT)
-	}
-
-	err := stub.DelState(args[0])
-	if err != nil {
-		s := fmt.Sprintf(ERROR_SYSTEM, err.Error())
-		return shim.Error(s)
-	}
-
-	return shim.Success(nil)
-}
-
-// query current money of the account,should be [query accout]
-func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	if len(args) != 1 {
-		return shim.Error(ERROR_WRONG_FORMAT)
-	}
-
-	money, err := stub.GetState(args[0])
-	if err != nil {
-		s := fmt.Sprintf(ERROR_SYSTEM, err.Error())
-		return shim.Error(s)
-	}
-
-	if money == nil {
-		return shim.Error(ERROR_ACCOUNT_ABNORMAL)
-	}
-
-	return shim.Success(money)
-}
-
-// transfer money from account1 to account2, should be [transfer account1 account2 money]
-func (t *SimpleChaincode) Transfer(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+// Sharing a file
+func  (t *CloudChaincode) ShareFile(stub shim.ChaincodeStubInterface, args []string)pb.Response{
 	if len(args) != 3 {
-		return shim.Error(ERROR_WRONG_FORMAT)
+		fmt.Println("Incorrect number of arguments")
+		return shim.Error("Error encountered")
 	}
-	money, err := strconv.Atoi(args[2])
+	var CompositeKey = args[0]
+	var SecretKey = args[1]
+	var EdgeKey = args[2]
+	DataAsBytes, err := stub.GetState(CompositeKey)
 	if err != nil {
-		return shim.Error(ERROR_WRONG_FORMAT)
+		return shim.Error("Error encountered")
+	}else if DataAsBytes == nil {
+		return shim.Error("No user with the given CompositeKey")
 	}
-
-	moneyBytes1, err1 := stub.GetState(args[0])
-	moneyBytes2, err2 := stub.GetState(args[1])
-	if err1 != nil || err2 != nil {
-		s := fmt.Sprintf(ERROR_SYSTEM, err.Error())
-		return shim.Error(s)
-	}
-	if moneyBytes1 == nil || moneyBytes2 == nil {
-		return shim.Error(ERROR_ACCOUNT_ABNORMAL)
-	}
-
-	money1, _ := strconv.Atoi(string(moneyBytes1))
-	money2, _ := strconv.Atoi(string(moneyBytes2))
-	if money1 < money {
-		return shim.Error(ERROR_MONEY_NOT_ENOUGH)
-	}
-
-	money1 -= money
-	money2 += money
-
-	err = stub.PutState(args[0], []byte(strconv.Itoa(money1)))
+	var Data Data
+	var ShareData ShareData
+	err = json.Unmarshal(DataAsBytes, &Data)
+	ShareDataAsBytes, err := stub.GetState(EdgeKey)
 	if err != nil {
-		s := fmt.Sprintf(ERROR_SYSTEM, err.Error())
-		return shim.Error(s)
+		return shim.Error("Error encountered")
+	}else if ShareDataAsBytes == nil {
+		ShareData.EdgeKey = EdgeKey
+		FileDataShare := make(map[string]FileData)
+		FileDataShare[SecretKey] = Data.FileData[SecretKey]
+		ShareData.FileData = FileDataShare
+	}else if ShareDataAsBytes != nil {
+		err = json.Unmarshal(ShareDataAsBytes, &ShareData)
+		ShareData.FileData[SecretKey] = Data.FileData[SecretKey]
 	}
-
-	err = stub.PutState(args[1], []byte(strconv.Itoa(money2)))
+		
+	ShareDataJsonAsBytes, err := json.Marshal(ShareData)
+	fmt.Println(ShareData)
 	if err != nil {
-		s := fmt.Sprintf(ERROR_SYSTEM, err.Error())
-		return shim.Error(s)
+		return shim.Error("Error encountered while remarshalling")
 	}
-
+	err = stub.PutState(EdgeKey, ShareDataJsonAsBytes)
+	if err != nil {
+		return shim.Error("error encountered while putting state")
+	}
+	fmt.Println("File shared successfully")
 	return shim.Success(nil)
 }
 
-
-func  main()  {
-	err := shim.Start(new(SimpleChaincode))
+// MAIN FUNCTION
+func  main() {
+	err := shim.Start(new(CloudChaincode))
 	if err != nil {
-		fmt.Printf("Error starting chaincode: %v \n", err)
+		fmt.Printf("Error starting Chaincode: %s", err)
 	}
-
 }
